@@ -1,0 +1,50 @@
+{
+  "name": "Paintball Buzzer PWA",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:26-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1": {}
+  },
+  "hostRequirements": {
+    "cpus": 2
+  },
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "secrets": {
+    "CLAUDE_CODE_OAUTH_TOKEN": {
+      "description": "Langlebiges Claude-Code-Token aus `claude setup-token` (nutzt dein Pro/Max-Abo). Damit startet Claude Code im Codespace bereits eingeloggt.",
+      "documentationUrl": "https://docs.claude.com/en/docs/claude-code/setup"
+    }
+  },
+  "forwardPorts": [5173, 5174, 4173],
+  "portsAttributes": {
+    "5173": {
+      "label": "App (vite dev)",
+      "onAutoForward": "notify"
+    },
+    "5174": {
+      "label": "Doku (vitepress dev)",
+      "onAutoForward": "notify"
+    },
+    "4173": {
+      "label": "App (vite preview, Build inkl. Service Worker)",
+      "onAutoForward": "notify"
+    }
+  },
+  "customizations": {
+    "codespaces": {
+      "openFiles": ["README.md"]
+    },
+    "vscode": {
+      "extensions": [
+        "anthropic.claude-code",
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint",
+        "github.vscode-github-actions"
+      ],
+      "settings": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.formatOnSave": true
+      }
+    }
+  }
+}
