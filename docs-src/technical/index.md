@@ -11,7 +11,7 @@ src/
   slots.js     Tasten-Definitionen und Zuordnung Media-Session-Aktion → Taste
   storage.js   IndexedDB (Sounds als Blob, Einstellungen)
   style.css
-public/icons/  generiert von scripts/generate-icons.mjs
+public/icons/  generiert von scripts/generate-icons.mjs (Vorlage: assets/buzzer-icon.png)
 docs-src/      VitePress
 ```
 
