@@ -8,8 +8,10 @@
 ## Status ist gelb („Unterbrochen“)
 
 Eine andere App (Anruf, Musik, Video, Sprachnachricht) hat die Audiowiedergabe
-übernommen. **Wieder verbinden** tippen. Oft reicht auch ein Druck auf Play
-der Fernbedienung.
+übernommen. Die App versucht danach dreimal selbst, die Wiedergabe
+fortzusetzen (sichtbar unter **Ereignisse**). Klappt das nicht,
+**Wieder verbinden** tippen. Oft reicht auch ein Druck auf Play der
+Fernbedienung.
 
 ## Tasten kommen nicht an
 
@@ -18,6 +20,8 @@ der Fernbedienung.
 3. Läuft eine andere Medien-App? Die schnappt sich die Tasten. Schließen und **Wieder verbinden**.
 4. Android: Akku-Optimierung für Chrome bzw. die installierte App deaktivieren
    (Einstellungen → Apps → Chrome → Akku → Nicht eingeschränkt).
+   Samsung zusätzlich: Einstellungen → Akku → Hintergrundnutzungslimits –
+   Chrome darf nicht unter „Apps im Standby“ oder „Apps im Tiefschlaf“ stehen.
 5. iOS: siehe [Android vs. iOS](./fernbedienung#android-vs-ios).
 
 ## Sound kommt aus dem Handy statt aus dem Lautsprecher
