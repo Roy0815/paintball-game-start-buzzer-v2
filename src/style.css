@@ -1,4 +1,6 @@
-/* Nocturne tokens — dark by default, light follows the system setting. */
+/* Nocturne tokens — dark by default. data-theme on <html> is set by
+   src/theme.js (and the inline script in index.html) from the user's choice
+   or, for "System", from prefers-color-scheme. */
 :root {
   --bg: #161826;
   --surface: #232532;
@@ -27,24 +29,22 @@
   line-height: 1.45;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    --bg: #e4e7f5;
-    --surface: #f3f5fe;
-    --surface-2: #e9ecf8;
-    --text: #292b31;
-    --muted: #595d6c;
-    --divider: rgba(41, 43, 49, 0.13);
-    --accent: #796cbf;
-    --accent-text: #5d5294;
-    --accent-tint: #e7e5fe;
-    --accent-press: #5d5294;
-    --glow: rgba(121, 108, 191, 0.3);
-    --warn: oklch(0.55 0.11 75);
-    --warn-tint: #f1ead8;
-    --danger: oklch(0.52 0.15 25);
-    color-scheme: light;
-  }
+:root[data-theme='light'] {
+  --bg: #e4e7f5;
+  --surface: #f3f5fe;
+  --surface-2: #e9ecf8;
+  --text: #292b31;
+  --muted: #595d6c;
+  --divider: rgba(41, 43, 49, 0.13);
+  --accent: #796cbf;
+  --accent-text: #5d5294;
+  --accent-tint: #e7e5fe;
+  --accent-press: #5d5294;
+  --glow: rgba(121, 108, 191, 0.3);
+  --warn: oklch(0.55 0.11 75);
+  --warn-tint: #f1ead8;
+  --danger: oklch(0.52 0.15 25);
+  color-scheme: light;
 }
 
 *,
@@ -585,7 +585,8 @@ main > .section-head:first-child {
 
 .seg {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
   border: 1px solid var(--divider);
   border-radius: var(--radius-md);
   overflow: hidden;
@@ -594,10 +595,14 @@ main > .section-head:first-child {
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   min-height: 44px;
   font-size: 14px;
   cursor: pointer;
   border-radius: var(--radius-md);
+}
+.seg-opt .ph {
+  font-size: 16px;
 }
 .seg-opt input {
   position: absolute;

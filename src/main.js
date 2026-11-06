@@ -17,6 +17,7 @@ import {
   estimateUsage,
 } from './storage.js';
 import * as engine from './engine.js';
+import { initTheme, getThemePref, setThemePref } from './theme.js';
 
 const DOCS_URL = `${import.meta.env.BASE_URL}docs/`;
 const LICENSES_URL = `${import.meta.env.BASE_URL}third-party-licenses.txt`;
@@ -301,20 +302,22 @@ function renderHints() {
     .join('');
 }
 
-function renderSettings() {
-  const { repress, volume } = state.options;
-  const seg = [
-    ['stop', 'Stoppt den Sound'],
-    ['restart', 'Startet neuen Sound'],
-  ]
+// Segmented control. `attr` marks the radios for the change handler.
+function renderSeg(name, attr, current, choices) {
+  const opts = choices
     .map(
-      ([value, label]) => `
+      ([value, label, ic]) => `
       <label class="seg-opt">
-        <input type="radio" name="repress" value="${value}" data-option="repress" ${repress === value ? 'checked' : ''} />
-        ${label}
+        <input type="radio" name="${name}" value="${value}" ${attr} ${current === value ? 'checked' : ''} />
+        ${ic ? icon(ic) : ''}${label}
       </label>`,
     )
     .join('');
+  return `<div class="seg">${opts}</div>`;
+}
+
+function renderSettings() {
+  const { repress, volume } = state.options;
   const items = state.log
     .map(
       (e) =>
@@ -325,11 +328,22 @@ function renderSettings() {
     <div class="card settings">
       <div class="field">
         <label>Tastendruck während ein Sound läuft</label>
-        <div class="seg">${seg}</div>
+        ${renderSeg('repress', 'data-option="repress"', repress, [
+          ['stop', 'Stoppt den Sound'],
+          ['restart', 'Startet neuen Sound'],
+        ])}
       </div>
       <div class="field">
         <label class="split"><span>App-Lautstärke</span><span id="volume-label">${Math.round(volume * 100)} %</span></label>
         <input type="range" min="0" max="1" step="0.05" value="${volume}" data-option="volume" aria-label="App-Lautstärke" />
+      </div>
+      <div class="field">
+        <label>Darstellung</label>
+        ${renderSeg('theme', 'data-action="theme"', getThemePref(), [
+          ['system', 'System', 'ph-circle-half'],
+          ['light', 'Hell', 'ph-sun'],
+          ['dark', 'Dunkel', 'ph-moon'],
+        ])}
       </div>
     </div>
     ${renderHints()}
@@ -517,6 +531,10 @@ app.addEventListener('change', async (event) => {
     await handleUpload([...el.files]);
     return;
   }
+  if (el.dataset.action === 'theme') {
+    setThemePref(el.value);
+    return;
+  }
   if (el.dataset.slot) {
     if (el.value) state.mapping[el.dataset.slot] = el.value;
     else delete state.mapping[el.dataset.slot];
@@ -571,6 +589,7 @@ engine.onEngineEvent((event) => {
 // ---------- boot ----------
 
 async function boot() {
+  initTheme();
   render();
   state.mapping = await getSetting('mapping', {});
   state.options = { ...state.options, ...(await getSetting('options', {})) };
