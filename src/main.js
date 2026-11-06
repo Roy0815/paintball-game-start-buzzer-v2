@@ -1,4 +1,5 @@
 import './style.css';
+import '@phosphor-icons/web/regular';
 import { registerSW } from 'virtual:pwa-register';
 import { SLOTS, SLOT_BY_ID, KEY_TO_SLOT } from './slots.js';
 import {
@@ -15,6 +16,23 @@ import * as engine from './engine.js';
 
 const DOCS_URL = `${import.meta.env.BASE_URL}docs/`;
 const MAX_LOG = 30;
+// The first three slots arrive through the Media Session on every remote; the
+// rest are folded away behind "weitere Tasten".
+const PRIMARY_COUNT = 3;
+const SLOT_ICONS = {
+  playpause: 'ph-play-pause',
+  nexttrack: 'ph-skip-forward',
+  previoustrack: 'ph-skip-back',
+  seekforward: 'ph-fast-forward',
+  seekbackward: 'ph-rewind',
+  volumeup: 'ph-speaker-high',
+  volumedown: 'ph-speaker-low',
+};
+const TABS = [
+  { id: 'buzzer', label: 'Buzzer', icon: 'ph-power' },
+  { id: 'sounds', label: 'Sounds', icon: 'ph-music-notes' },
+  { id: 'settings', label: 'Einstellungen', icon: 'ph-gear-six' },
+];
 
 const state = {
   sounds: [],
@@ -25,6 +43,11 @@ const state = {
   usage: null,
   persisted: null,
   updateReady: null,
+  // UI only
+  tab: 'buzzer',
+  moreSlots: false,
+  logOpen: false,
+  soundMenu: null,
 };
 
 const app = document.querySelector('#app');
@@ -81,158 +104,212 @@ function isStandalone() {
   );
 }
 
-// ---------- rendering ----------
+const icon = (name) => `<i class="ph ${name}" aria-hidden="true"></i>`;
 
-function renderStatus() {
-  const { armed, keepAlivePlaying, playing } = state.engine;
-  let statusClass = 'off';
-  let statusText = 'Inaktiv – Tasten der Fernbedienung werden nicht empfangen.';
-  if (armed && keepAlivePlaying) {
-    statusClass = 'on';
-    statusText = 'Aktiv – Handy kann jetzt gesperrt werden.';
-  } else if (armed) {
-    statusClass = 'warn';
-    statusText =
-      'Unterbrochen – das System hat die Wiedergabe angehalten. Tippe auf „Wieder verbinden“.';
-  }
-  const playingHtml = playing
-    ? `<div class="now-playing">
-         <span>▶ ${esc(soundName(playing.soundId))}</span>
-         <button class="btn small" data-action="stop">Stopp</button>
-       </div>`
-    : '';
-  return `
-    <section class="card status ${statusClass}">
-      <div class="status-line"><span class="dot"></span>${esc(statusText)}</div>
-      <div class="row">
-        ${
-          !armed
-            ? '<button class="btn primary big" data-action="arm">Fernbedienung aktivieren</button>'
-            : `${!keepAlivePlaying ? '<button class="btn primary big" data-action="arm">Wieder verbinden</button>' : ''}
-               <button class="btn big" data-action="disarm">Deaktivieren</button>`
-        }
-      </div>
-      ${playingHtml}
-    </section>`;
+// ---------- status ----------
+
+function statusInfo() {
+  const { armed, keepAlivePlaying } = state.engine;
+  if (!armed)
+    return {
+      cls: 'off',
+      tag: 'Inaktiv',
+      head: 'Bereit zum Aktivieren',
+      sub: 'Tasten der Fernbedienung werden noch nicht empfangen.',
+      action: 'arm',
+      label: 'Aktivieren',
+    };
+  if (!keepAlivePlaying)
+    return {
+      cls: 'warn',
+      tag: 'Unterbrochen',
+      head: 'Unterbrochen',
+      sub: 'Das System hat die Wiedergabe angehalten – z. B. durch einen Anruf oder eine andere App.',
+      action: 'arm',
+      label: 'Wieder verbinden',
+    };
+  return {
+    cls: 'on',
+    tag: 'Aktiv',
+    head: 'Aktiv',
+    sub: 'Handy kann jetzt gesperrt werden.',
+    action: 'disarm',
+    label: 'Deaktivieren',
+  };
 }
 
-function renderMapping() {
-  const options = (selected) =>
-    ['<option value="">– keine –</option>']
-      .concat(
-        state.sounds.map(
-          (s) =>
-            `<option value="${esc(s.id)}" ${s.id === selected ? 'selected' : ''}>${esc(s.name)}</option>`,
-        ),
-      )
-      .join('');
-  const rows = SLOTS.map((slot) => {
-    const selected = state.mapping[slot.id] ?? '';
-    return `
-      <div class="slot ${slot.background ? '' : 'foreground-only'}">
-        <div class="slot-label">
-          <strong>${esc(slot.label)}</strong>
-          ${slot.background ? '<span class="badge">auch gesperrt</span>' : '<span class="badge muted">nur App offen</span>'}
-          <small>${esc(slot.hint)}</small>
-        </div>
-        <div class="slot-controls">
-          <select data-slot="${slot.id}" aria-label="Sound für ${esc(slot.label)}">${options(selected)}</select>
-          <button class="btn icon" data-action="test" data-slot="${slot.id}" ${selected ? '' : 'disabled'} aria-label="${esc(slot.label)} testen">▶</button>
-        </div>
-      </div>`;
-  }).join('');
+function renderTag(info) {
+  return `<span class="tag status-tag ${info.cls}"><span class="dot"></span>${esc(info.tag)}</span>`;
+}
+
+// ---------- buzzer tab ----------
+
+function renderNowPlaying() {
+  const { playing } = state.engine;
+  if (!playing) return '';
   return `
-    <section class="card">
-      <h2>Tastenbelegung</h2>
-      ${state.sounds.length === 0 ? '<p class="muted">Lade zuerst unten einen oder mehrere Sounds hoch.</p>' : ''}
-      ${rows}
-      <p class="muted small">
-        Die Lautstärketasten der Fernbedienung regeln auf Android und iOS immer
-        die Systemlautstärke. Eine Web-App kann sie bei gesperrtem Handy nicht
-        abfangen.
-      </p>
-    </section>`;
+    <div class="now-playing">
+      ${icon('ph-speaker-high')}
+      <span>${esc(soundName(playing.soundId))}</span>
+      <button class="btn btn-secondary" data-action="stop">Stopp</button>
+    </div>`;
+}
+
+function renderBuzzer() {
+  const info = statusInfo();
+  const unsupported = !('mediaSession' in navigator)
+    ? `<div class="notice warn">${icon('ph-warning')}<p>Dieser Browser unterstützt die Media Session API nicht. Die Fernbedienung funktioniert hier nicht.</p></div>`
+    : '';
+  const tiles = SLOTS.slice(0, PRIMARY_COUNT)
+    .map((slot) => {
+      const id = state.mapping[slot.id];
+      return `
+        <button class="tile" data-action="test" data-slot="${slot.id}" ${id ? '' : 'disabled'} aria-label="${esc(slot.label)} testen">
+          ${icon(SLOT_ICONS[slot.id])}
+          <span class="${id ? '' : 'muted'}">${id ? esc(soundName(id)) : 'Nicht belegt'}</span>
+        </button>`;
+    })
+    .join('');
+  return `
+    <div class="buzzer ${info.cls}">
+      ${renderTag(info)}
+      <div class="buzzer-text">
+        <h1>${esc(info.head)}</h1>
+        <p class="muted">${esc(info.sub)}</p>
+      </div>
+      ${unsupported}
+      <div class="buzzer-stage">
+        <button class="buzzer-button" data-action="${info.action}">
+          ${icon('ph-power')}
+          <span>${esc(info.label)}</span>
+        </button>
+      </div>
+      ${info.cls === 'warn' ? '<button class="btn btn-ghost" data-action="disarm">Deaktivieren</button>' : ''}
+      ${renderNowPlaying()}
+      <div class="tiles">${tiles}</div>
+    </div>`;
+}
+
+// ---------- sounds tab ----------
+
+function renderSlotRow(slot) {
+  const selected = state.mapping[slot.id] ?? '';
+  const options = ['<option value="">– keine –</option>']
+    .concat(
+      state.sounds.map(
+        (s) =>
+          `<option value="${esc(s.id)}" ${s.id === selected ? 'selected' : ''}>${esc(s.name)}</option>`,
+      ),
+    )
+    .join('');
+  const sub = slot.background
+    ? `<small class="muted">${esc(slot.hint)}</small>`
+    : '<small class="warn-text">Nur bei offener App</small>';
+  return `
+    <div class="row slot">
+      <div class="slot-label"><strong>${esc(slot.label)}</strong>${sub}</div>
+      <select class="input" data-slot="${slot.id}" aria-label="Sound für ${esc(slot.label)}">${options}</select>
+    </div>`;
 }
 
 function renderSounds() {
-  const list = state.sounds
-    .map(
-      (s) => `
-      <li>
-        <div class="sound-meta">
-          <strong>${esc(s.name)}</strong>
-          <small>${formatDuration(s.duration)} · ${formatBytes(s.size)}</small>
-        </div>
-        <div class="sound-actions">
-          <button class="btn icon" data-action="preview" data-id="${esc(s.id)}" aria-label="Anhören">▶</button>
-          <button class="btn icon" data-action="rename" data-id="${esc(s.id)}" aria-label="Umbenennen">✎</button>
-          <button class="btn icon danger" data-action="delete" data-id="${esc(s.id)}" aria-label="Löschen">🗑</button>
-        </div>
-      </li>`,
-    )
-    .join('');
-  const usage = state.usage
-    ? `Speicher: ${formatBytes(state.usage.usage)} von ca. ${formatBytes(state.usage.quota)} belegt.`
+  const primary = SLOTS.slice(0, PRIMARY_COUNT).map(renderSlotRow).join('');
+  const extra = SLOTS.slice(PRIMARY_COUNT);
+  const extraMapped = extra.filter((s) => state.mapping[s.id]).length;
+  const moreLabel = state.moreSlots
+    ? 'Weniger anzeigen'
+    : `${extra.length} weitere Tasten${extraMapped ? ` · ${extraMapped} belegt` : ''}`;
+  const extraHtml = state.moreSlots
+    ? `${extra.map(renderSlotRow).join('')}
+       <p class="muted small pad">Lautstärketasten regeln bei gesperrtem Handy immer die Systemlautstärke. Eine Web-App kann sie dann nicht abfangen.</p>`
     : '';
-  const persisted =
-    state.persisted === false
-      ? ' Der Browser hat dauerhaften Speicher nicht zugesagt – die App installieren hilft.'
-      : '';
+
+  const list = state.sounds
+    .map((s) => {
+      const menuOpen = state.soundMenu === s.id;
+      const actions = menuOpen
+        ? `<button class="btn btn-icon" data-action="rename" data-id="${esc(s.id)}" aria-label="Umbenennen">${icon('ph-pencil-simple')}</button>
+           <button class="btn btn-icon danger" data-action="delete" data-id="${esc(s.id)}" aria-label="Löschen">${icon('ph-trash')}</button>`
+        : `<button class="btn btn-icon" data-action="sound-menu" data-id="${esc(s.id)}" aria-label="Mehr">${icon('ph-dots-three')}</button>`;
+      return `
+        <li class="row">
+          <button class="btn btn-icon round" data-action="preview" data-id="${esc(s.id)}" aria-label="Anhören">${icon('ph-play')}</button>
+          <div class="sound-meta">
+            <strong>${esc(s.name)}</strong>
+            <small class="muted">${formatDuration(s.duration)} · ${formatBytes(s.size)}</small>
+          </div>
+          ${actions}
+        </li>`;
+    })
+    .join('');
+
+  const usage = state.usage ? `${formatBytes(state.usage.usage)} · ` : '';
   return `
-    <section class="card">
-      <h2>Sounds</h2>
-      <label class="btn primary upload">
-        MP3 / Audio hinzufügen
+    <div class="section-head"><h6>Tastenbelegung</h6></div>
+    <div class="card list">
+      ${state.sounds.length === 0 ? '<p class="muted small pad">Lade zuerst unten einen oder mehrere Sounds hoch.</p>' : ''}
+      ${primary}
+      <button class="row more" data-action="toggle-more">
+        <span>${esc(moreLabel)}</span>${icon(state.moreSlots ? 'ph-caret-up' : 'ph-caret-down')}
+      </button>
+      ${extraHtml}
+    </div>
+
+    <div class="section-head"><h6>Bibliothek</h6><small class="muted">${esc(usage)}nur auf diesem Gerät</small></div>
+    <div class="card list">
+      ${list ? `<ul class="sounds">${list}</ul>` : '<p class="muted small pad">Noch keine Sounds gespeichert.</p>'}
+      <label class="row add">
+        ${icon('ph-plus')} Audio hinzufügen
         <input type="file" accept="audio/*,.mp3,.m4a,.wav,.ogg,.aac" multiple data-action="upload" hidden />
       </label>
-      ${list ? `<ul class="sounds">${list}</ul>` : '<p class="muted">Noch keine Sounds gespeichert.</p>'}
-      <p class="muted small">Die Dateien bleiben nur auf diesem Gerät (IndexedDB) und werden nirgendwo hochgeladen. ${esc(usage)}${esc(persisted)}</p>
-    </section>`;
+    </div>`;
+}
+
+// ---------- settings tab ----------
+
+function renderHints() {
+  const hints = [];
+  if (!isStandalone()) {
+    hints.push({
+      title: 'App installieren',
+      text: isIOS()
+        ? 'Über „Teilen → Zum Home-Bildschirm“. Dann bleiben die Sounds dauerhaft gespeichert.'
+        : 'Über das Browser-Menü „App installieren“. Dann bleiben die Sounds dauerhaft gespeichert.',
+    });
+  } else if (state.persisted === false) {
+    hints.push({
+      title: 'Speicher nicht dauerhaft',
+      text: 'Der Browser hat dauerhaften Speicher nicht zugesagt. Sounds könnten gelöscht werden.',
+    });
+  }
+  if (isIOS()) {
+    hints.push({
+      title: 'iOS',
+      text: 'Funktioniert nur eingeschränkt. Wenn die Tasten bei gesperrtem Handy nicht ankommen, App offen und Bildschirm an lassen.',
+    });
+  }
+  return hints
+    .map(
+      (h) =>
+        `<div class="notice warn">${icon('ph-info')}<p><strong>${esc(h.title)}</strong><br><span class="muted">${esc(h.text)}</span></p></div>`,
+    )
+    .join('');
 }
 
 function renderSettings() {
   const { repress, volume } = state.options;
-  return `
-    <section class="card">
-      <h2>Einstellungen</h2>
-      <label class="field">
-        <span>Tastendruck während ein Sound läuft</span>
-        <select data-option="repress">
-          <option value="stop" ${repress === 'stop' ? 'selected' : ''}>stoppt den Sound</option>
-          <option value="restart" ${repress === 'restart' ? 'selected' : ''}>startet den neuen Sound</option>
-        </select>
-      </label>
-      <label class="field">
-        <span>App-Lautstärke: ${Math.round(volume * 100)} %</span>
-        <input type="range" min="0" max="1" step="0.05" value="${volume}" data-option="volume" />
-      </label>
-    </section>`;
-}
-
-function renderHints() {
-  const hints = [];
-  if (!('mediaSession' in navigator)) {
-    hints.push(
-      'Dieser Browser unterstützt die Media Session API nicht. Die Fernbedienung funktioniert hier nicht.',
-    );
-  }
-  if (!isStandalone()) {
-    hints.push(
-      isIOS()
-        ? 'Tipp: Über „Teilen → Zum Home-Bildschirm“ installieren. Dann bleiben die Sounds dauerhaft gespeichert.'
-        : 'Tipp: Über das Browser-Menü „App installieren“ wählen.',
-    );
-  }
-  if (isIOS()) {
-    hints.push(
-      'iOS: Funktioniert nur eingeschränkt. Wenn die Tasten bei gesperrtem Handy nicht ankommen, App offen und Bildschirm an lassen.',
-    );
-  }
-  if (!hints.length) return '';
-  return `<section class="card hints">${hints.map((h) => `<p>${esc(h)}</p>`).join('')}</section>`;
-}
-
-function renderLog() {
+  const seg = [
+    ['stop', 'Stoppt den Sound'],
+    ['restart', 'Startet neuen Sound'],
+  ]
+    .map(
+      ([value, label]) => `
+      <label class="seg-opt">
+        <input type="radio" name="repress" value="${value}" data-option="repress" ${repress === value ? 'checked' : ''} />
+        ${label}
+      </label>`,
+    )
+    .join('');
   const items = state.log
     .map(
       (e) =>
@@ -240,43 +317,68 @@ function renderLog() {
     )
     .join('');
   return `
-    <section class="card">
-      <details>
-        <summary>Ereignisse (zum Testen der Fernbedienung)</summary>
-        ${items ? `<ul class="log">${items}</ul>` : '<p class="muted">Noch keine Ereignisse.</p>'}
-      </details>
-    </section>`;
+    <div class="card settings">
+      <div class="field">
+        <label>Tastendruck während ein Sound läuft</label>
+        <div class="seg">${seg}</div>
+      </div>
+      <div class="field">
+        <label class="split"><span>App-Lautstärke</span><span id="volume-label">${Math.round(volume * 100)} %</span></label>
+        <input type="range" min="0" max="1" step="0.05" value="${volume}" data-option="volume" aria-label="App-Lautstärke" />
+      </div>
+    </div>
+    ${renderHints()}
+    <div class="card list">
+      <button class="row link" data-action="toggle-log">
+        ${icon('ph-list-bullets')}<span>Ereignisse</span>${icon(state.logOpen ? 'ph-caret-up' : 'ph-caret-down')}
+      </button>
+      ${
+        state.logOpen
+          ? items
+            ? `<ul class="log">${items}</ul>`
+            : '<p class="muted small pad">Noch keine Ereignisse.</p>'
+          : ''
+      }
+      <a class="row link" href="${DOCS_URL}">
+        ${icon('ph-question')}<span>Hilfe &amp; Anleitung</span>${icon('ph-arrow-up-right')}
+      </a>
+    </div>`;
 }
+
+// ---------- shell ----------
 
 function renderUpdate() {
   if (!state.updateReady) return '';
   return `
     <div class="update-banner">
-      Neue Version verfügbar.
-      <button class="btn small primary" data-action="update">Neu laden</button>
+      <span>Neue Version verfügbar.</span>
+      <button class="btn btn-primary" data-action="update">Neu laden</button>
     </div>`;
 }
 
 function render() {
-  // Keep the log's open state across re-renders.
-  const logOpen = app.querySelector('details')?.open ?? false;
+  const tab = TABS.find((t) => t.id === state.tab);
+  const header =
+    state.tab === 'buzzer'
+      ? ''
+      : `<header class="app-header"><h2>${esc(tab.label)}</h2>${renderTag(statusInfo())}</header>`;
+  const body =
+    state.tab === 'buzzer'
+      ? renderBuzzer()
+      : state.tab === 'sounds'
+        ? renderSounds()
+        : renderSettings();
+  const tabs = TABS.map(
+    (t) => `
+      <button class="tab ${t.id === state.tab ? 'active' : ''}" data-action="tab" data-tab="${t.id}" ${t.id === state.tab ? 'aria-current="page"' : ''}>
+        ${icon(t.icon)}<span>${t.label}</span>
+      </button>`,
+  ).join('');
   app.innerHTML = `
     ${renderUpdate()}
-    <header class="app-header">
-      <img src="${import.meta.env.BASE_URL}icons/favicon.svg" alt="" width="36" height="36" />
-      <h1>Paintball Buzzer</h1>
-      <a href="${DOCS_URL}" class="docs-link">Hilfe</a>
-    </header>
-    <main>
-      ${renderStatus()}
-      ${renderHints()}
-      ${renderMapping()}
-      ${renderSounds()}
-      ${renderSettings()}
-      ${renderLog()}
-    </main>`;
-  const details = app.querySelector('details');
-  if (details) details.open = logOpen;
+    ${header}
+    <main class="tab-${state.tab}">${body}</main>
+    <nav class="tabbar">${tabs}</nav>`;
 }
 
 // ---------- actions ----------
@@ -337,6 +439,24 @@ app.addEventListener('click', async (event) => {
   const { action, id, slot } = target.dataset;
 
   switch (action) {
+    case 'tab':
+      state.tab = target.dataset.tab;
+      state.soundMenu = null;
+      render();
+      window.scrollTo(0, 0);
+      break;
+    case 'toggle-more':
+      state.moreSlots = !state.moreSlots;
+      render();
+      break;
+    case 'toggle-log':
+      state.logOpen = !state.logOpen;
+      render();
+      break;
+    case 'sound-menu':
+      state.soundMenu = id;
+      render();
+      break;
     case 'arm':
       try {
         await engine.arm();
@@ -362,6 +482,7 @@ app.addEventListener('click', async (event) => {
       if (!name?.trim()) return;
       const full = await getSound(id);
       await putSound({ ...full, name: name.trim() });
+      state.soundMenu = null;
       await refreshSounds();
       render();
       break;
@@ -371,6 +492,7 @@ app.addEventListener('click', async (event) => {
       if (!confirm(`„${sound?.name}“ löschen?`)) return;
       await deleteSound(id);
       engine.forgetBuffer(id);
+      state.soundMenu = null;
       await refreshSounds();
       render();
       break;
@@ -408,7 +530,8 @@ app.addEventListener('input', (event) => {
   const el = event.target;
   if (el.dataset.option === 'volume') {
     engine.setOptions({ volume: Number(el.value) });
-    el.previousElementSibling.textContent = `App-Lautstärke: ${Math.round(el.value * 100)} %`;
+    const label = app.querySelector('#volume-label');
+    if (label) label.textContent = `${Math.round(el.value * 100)} %`;
   }
 });
 
@@ -432,6 +555,8 @@ document.addEventListener('visibilitychange', () => {
 engine.onEngineEvent((event) => {
   if (event.type === 'log') addLog(event.message, event.at);
   if (event.type === 'state') state.engine = event.state;
+  // Don't rebuild the DOM under an open <select> on the Sounds tab.
+  if (event.type === 'log' && state.tab === 'sounds') return;
   render();
 });
 
@@ -446,6 +571,8 @@ async function boot() {
   engine.setMapping(state.mapping);
   if (navigator.storage?.persisted)
     state.persisted = await navigator.storage.persisted();
+  // Nothing set up yet: start where the setup happens.
+  if (state.sounds.length === 0) state.tab = 'sounds';
   render();
 
   const updateSW = registerSW({

@@ -31,8 +31,8 @@ export default defineConfig({
         description:
           'Bluetooth-Medienfernbedienung löst eigene Sounds auf einem Bluetooth-Lautsprecher aus.',
         lang: 'de',
-        theme_color: '#0f172a',
-        background_color: '#0f172a',
+        theme_color: '#161826',
+        background_color: '#161826',
         display: 'standalone',
         orientation: 'portrait',
         start_url: '.',
@@ -49,7 +49,7 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
         // The docs are built into dist/docs and share this origin, but they
         // are not part of the app and must not end up in the offline install.
         globIgnores: ['docs/**'],
