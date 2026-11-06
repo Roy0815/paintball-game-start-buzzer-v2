@@ -19,3 +19,9 @@ npm run build      # App + Doku nach dist/
 
 Am einfachsten in GitHub Codespaces (Devcontainer mit Claude Code ist
 vorkonfiguriert). Details: [docs-src/technical/development.md](docs-src/technical/development.md).
+
+## Lizenz
+
+[MIT](LICENSE). Mitgelieferte Fremdpakete (Schrift Inter, Phosphor Icons u. a.)
+stehen unter ihren eigenen Lizenzen, siehe
+[public/third-party-licenses.txt](public/third-party-licenses.txt).
