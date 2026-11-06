@@ -84,49 +84,90 @@ async function ensureRunning() {
   return c;
 }
 
-/** 15 s of 8-bit mono PCM silence. Long enough that Chrome treats it as real
- * media and shows the media notification (it ignores clips under ~5 s). */
-function createSilentWavUrl(seconds = 15, rate = 8000) {
+/**
+ * 15 s keep-alive clip: 16-bit mono PCM with a very quiet 30 Hz tone.
+ * Pure digital silence is detected as inaudible by Chrome/Android, which
+ * pauses the element after a while in the background. The tone sits around
+ * -66 dBFS: above Chrome's audibility threshold (~-72 dBFS), but far below
+ * anything a speaker makes audible. 15 s * 30 Hz = whole cycles, so the
+ * loop has no seam. Long enough that Chrome shows the media notification
+ * (it ignores clips under ~5 s).
+ */
+const KEEPALIVE_AMPLITUDE = 24; // of 32767
+const KEEPALIVE_FREQ = 30; // Hz
+
+function createKeepAliveWavUrl(seconds = 15, rate = 8000) {
   const n = seconds * rate;
-  const buf = new ArrayBuffer(44 + n);
+  const buf = new ArrayBuffer(44 + n * 2);
   const v = new DataView(buf);
   const str = (o, s) =>
     [...s].forEach((ch, i) => v.setUint8(o + i, ch.charCodeAt(0)));
   str(0, 'RIFF');
-  v.setUint32(4, 36 + n, true);
+  v.setUint32(4, 36 + n * 2, true);
   str(8, 'WAVE');
   str(12, 'fmt ');
   v.setUint32(16, 16, true);
   v.setUint16(20, 1, true); // PCM
   v.setUint16(22, 1, true); // mono
   v.setUint32(24, rate, true);
-  v.setUint32(28, rate, true); // byte rate
-  v.setUint16(32, 1, true); // block align
-  v.setUint16(34, 8, true); // bits per sample
+  v.setUint32(28, rate * 2, true); // byte rate
+  v.setUint16(32, 2, true); // block align
+  v.setUint16(34, 16, true); // bits per sample
   str(36, 'data');
-  v.setUint32(40, n, true);
-  new Uint8Array(buf, 44).fill(128); // 8-bit PCM silence is the mid value
+  v.setUint32(40, n * 2, true);
+  for (let i = 0; i < n; i++) {
+    const sample = Math.sin((2 * Math.PI * KEEPALIVE_FREQ * i) / rate);
+    v.setInt16(44 + i * 2, Math.round(sample * KEEPALIVE_AMPLITUDE), true);
+  }
   return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+}
+
+/** Retries after the system paused the keep-alive, with growing delay. */
+const RESUME_DELAYS_MS = [1000, 3000, 10000];
+let resumeAttempt = 0;
+let resumeTimer = null;
+
+function scheduleAutoResume() {
+  clearTimeout(resumeTimer);
+  if (!armed || resumeAttempt >= RESUME_DELAYS_MS.length) return;
+  const delay = RESUME_DELAYS_MS[resumeAttempt++];
+  resumeTimer = setTimeout(() => {
+    if (!armed || !keepAlive?.paused) return;
+    keepAlive
+      .play()
+      .then(() =>
+        log(
+          `Hintergrund-Audio automatisch fortgesetzt (Versuch ${resumeAttempt}).`,
+        ),
+      )
+      .catch((err) => {
+        log(`Automatisches Fortsetzen fehlgeschlagen: ${err.message}`);
+        scheduleAutoResume();
+      });
+  }, delay);
 }
 
 function getKeepAlive() {
   if (!keepAlive) {
-    keepAliveUrl = createSilentWavUrl();
+    keepAliveUrl = createKeepAliveWavUrl();
     keepAlive = new Audio(keepAliveUrl);
     keepAlive.loop = true;
     keepAlive.preload = 'auto';
     // Not `muted` and not volume 0: browsers do not grant a media session to
-    // muted media, and iOS ignores both anyway. The content itself is silent.
+    // muted media, and iOS ignores both anyway. The content is near-silent.
     keepAlive.addEventListener('pause', () => {
       if (armed) {
         log(
           'Hintergrund-Audio wurde vom System pausiert (z. B. Anruf oder andere App).',
         );
         setPlaybackState('paused');
+        scheduleAutoResume();
       }
       emitState();
     });
     keepAlive.addEventListener('playing', () => {
+      resumeAttempt = 0;
+      clearTimeout(resumeTimer);
       if (armed) setPlaybackState('playing');
       emitState();
     });
@@ -232,6 +273,7 @@ export async function arm() {
 
 export function disarm() {
   armed = false;
+  clearTimeout(resumeTimer);
   stopSound();
   keepAlive?.pause();
   registerHandlers();
