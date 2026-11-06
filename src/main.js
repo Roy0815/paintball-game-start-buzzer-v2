@@ -1,3 +1,7 @@
+// Inter is bundled instead of loaded from Google Fonts so the app keeps its
+// typeface offline. Only the latin subset: it covers German including umlauts.
+import '@fontsource/inter/latin-400.css';
+import '@fontsource/inter/latin-500.css';
 import './style.css';
 import '@phosphor-icons/web/regular';
 import { registerSW } from 'virtual:pwa-register';
