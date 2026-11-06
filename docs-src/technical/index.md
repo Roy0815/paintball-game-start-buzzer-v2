@@ -26,9 +26,14 @@ Das Betriebssystem leitet Medientasten an die App mit der aktiven
 solange eines ihrer `<audio>`-Elemente abspielt. Deshalb startet
 **Aktivieren**:
 
-1. ein **Keep-Alive**: ein `<audio>`-Element, das in Schleife 15 s stille
-   PCM-Daten (zur Laufzeit erzeugtes WAV) abspielt. Nicht `muted` und nicht
-   Lautstärke 0 – stumme Medien bekommen keine Session.
+1. ein **Keep-Alive**: ein `<audio>`-Element, das in Schleife ein 15 s langes,
+   zur Laufzeit erzeugtes WAV abspielt (16 bit, 30-Hz-Sinus bei ca. −66 dBFS).
+   Nicht `muted` und nicht Lautstärke 0 – stumme Medien bekommen keine Session.
+   Auch reine digitale Stille reicht nicht: Chrome auf Android stuft sie als
+   unhörbar ein und pausiert das Element im Hintergrund nach ca. 1,5 min.
+   Der Ton liegt knapp über Chromes Hörbarkeits-Schwelle (ca. −72 dBFS),
+   ist aber praktisch nicht zu hören. 15 s × 30 Hz ergibt ganze Perioden,
+   die Schleife hat also keinen Knacks.
 2. einen `AudioContext` für die eigentlichen Sounds.
 3. Action-Handler für `play`, `pause`, `nexttrack`, `previoustrack`,
    `seekforward`, `seekbackward`, `stop`.
@@ -41,6 +46,14 @@ Handler werden nur für belegte Tasten registriert (außer Play/Pause, das immer
 abgefangen wird, damit die Fernbedienung das Keep-Alive nicht pausiert). Auf
 iOS würden registrierte Seek-Handler sonst die Vor/Zurück-Buttons im
 Sperrbildschirm durch ±10 s ersetzen.
+
+### Automatisches Fortsetzen
+
+Pausiert das System das Keep-Alive trotzdem (`pause`-Event bei aktivierter
+Fernbedienung), versucht `engine.js` nach 1 s, 3 s und 10 s erneut `play()`.
+Jeder Versuch landet im Ereignis-Log. Sobald das Element wieder `playing`
+meldet, wird der Zähler zurückgesetzt. Danach greift nur noch
+`resumeIfNeeded()` beim Zurückkehren in die App.
 
 ## Warum Web Audio für die Sounds?
 
