@@ -49,10 +49,16 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
-        // The docs are built into dist/docs and share this origin, but they
-        // are not part of the app and must not end up in the offline install.
-        globIgnores: ['docs/**'],
+        // Fonts only as woff2: every browser with service workers picks that
+        // format first, so the woff/ttf/svg fallbacks would be dead weight.
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        globIgnores: [
+          // The docs are built into dist/docs and share this origin, but they
+          // are not part of the app and must not end up in the offline install.
+          'docs/**',
+          // Phosphor's legacy SVG font (3 MB), see the woff2 note above.
+          'assets/Phosphor-*.svg',
+        ],
         // Otherwise the SW answers navigations to /docs/ with the app shell.
         navigateFallbackDenylist: [/\/docs(\/|$)/],
       },
