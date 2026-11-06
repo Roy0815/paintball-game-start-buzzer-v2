@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import qrCodePlugin from './scripts/vite-plugin-qr.mjs';
 
 // Must match the GitHub Pages base path. If it drifts, assets, the manifest
 // and the service worker scope all break on the deployed site.
@@ -20,6 +21,8 @@ export default defineConfig({
     allowedHosts: ['.app.github.dev'],
   },
   plugins: [
+    // Dev only: QR code of the server URL for opening the app on a phone.
+    qrCodePlugin(),
     VitePWA({
       // 'prompt' instead of 'autoUpdate': an automatic reload would silently
       // drop the armed media session in the middle of a game. The app shows a
