@@ -25,6 +25,8 @@ const MAX_LOG = 30;
 // The first three slots arrive through the Media Session on every remote; the
 // rest are folded away behind "weitere Tasten".
 const PRIMARY_COUNT = 3;
+// Buzzer tiles follow the physical remote: back, play/pause, forward.
+const TILE_SLOTS = ['previoustrack', 'playpause', 'nexttrack'];
 const SLOT_ICONS = {
   playpause: 'ph-play-pause',
   nexttrack: 'ph-skip-forward',
@@ -166,7 +168,7 @@ function renderBuzzer() {
   const unsupported = !('mediaSession' in navigator)
     ? `<div class="notice warn">${icon('ph-warning')}<p>Dieser Browser unterstützt die Media Session API nicht. Die Fernbedienung funktioniert hier nicht.</p></div>`
     : '';
-  const tiles = SLOTS.slice(0, PRIMARY_COUNT)
+  const tiles = TILE_SLOTS.map((slotId) => SLOT_BY_ID[slotId])
     .map((slot) => {
       const id = state.mapping[slot.id];
       return `
@@ -214,7 +216,10 @@ function renderSlotRow(slot) {
   return `
     <div class="row slot">
       <div class="slot-label"><strong>${esc(slot.label)}</strong>${sub}</div>
-      <select class="input" data-slot="${slot.id}" aria-label="Sound für ${esc(slot.label)}">${options}</select>
+      <div class="select">
+        <select class="input" data-slot="${slot.id}" aria-label="Sound für ${esc(slot.label)}">${options}</select>
+        ${icon('ph-caret-down')}
+      </div>
     </div>`;
 }
 

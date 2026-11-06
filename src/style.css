@@ -317,6 +317,32 @@ main > .section-head:first-child {
   font-size: 14px;
 }
 
+/* Native select arrows sit flush against the border; draw our own caret with
+   the same inset as the text. */
+.select {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+.select select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  padding: 0 36px 0 12px;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.select .ph {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 16px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
 .notice {
   display: flex;
   gap: 10px;
@@ -425,9 +451,7 @@ main > .section-head:first-child {
 .now-playing span {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 .now-playing .btn {
   border-color: var(--accent-text);
@@ -455,6 +479,10 @@ main > .section-head:first-child {
   font-size: 13px;
   line-height: 1.25;
   cursor: pointer;
+}
+.tile span {
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 .tile .ph {
   font-size: 18px;
@@ -532,9 +560,7 @@ main > .section-head:first-child {
 }
 .sound-meta strong {
   font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 .sound-meta small {
   font-size: 12px;
