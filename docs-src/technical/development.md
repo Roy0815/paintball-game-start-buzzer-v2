@@ -44,6 +44,7 @@ Statt des Abo-Tokens funktioniert auch ein Secret `ANTHROPIC_API_KEY`
 | `npm run preview`                 | Gebaute App inkl. Service Worker auf Port 4173 |
 | `npm run lint` / `npm run format` | ESLint / Prettier                              |
 | `npm run icons`                   | Icons in `public/icons/` neu erzeugen          |
+| `npm run licenses`                | `public/third-party-licenses.txt` neu erzeugen |
 
 ## Auf dem Handy testen
 

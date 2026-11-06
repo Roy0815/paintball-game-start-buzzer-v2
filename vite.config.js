@@ -51,7 +51,7 @@ export default defineConfig({
       workbox: {
         // Fonts only as woff2: every browser with service workers picks that
         // format first, so the woff/ttf/svg fallbacks would be dead weight.
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,txt,woff2}'],
         globIgnores: [
           // The docs are built into dist/docs and share this origin, but they
           // are not part of the app and must not end up in the offline install.

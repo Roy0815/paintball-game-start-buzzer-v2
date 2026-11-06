@@ -19,6 +19,7 @@ import {
 import * as engine from './engine.js';
 
 const DOCS_URL = `${import.meta.env.BASE_URL}docs/`;
+const LICENSES_URL = `${import.meta.env.BASE_URL}third-party-licenses.txt`;
 const MAX_LOG = 30;
 // The first three slots arrive through the Media Session on every remote; the
 // rest are folded away behind "weitere Tasten".
@@ -345,6 +346,9 @@ function renderSettings() {
       }
       <a class="row link" href="${DOCS_URL}">
         ${icon('ph-question')}<span>Hilfe &amp; Anleitung</span>${icon('ph-arrow-up-right')}
+      </a>
+      <a class="row link" href="${LICENSES_URL}" target="_blank" rel="noopener">
+        ${icon('ph-file-text')}<span>Lizenzen</span>${icon('ph-arrow-up-right')}
       </a>
     </div>`;
 }
